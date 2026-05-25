@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Générateur de Botanique</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f9; color: #1e293b; display: flex; flex-direction: column; align-items: center; padding: 50px; }
+        .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 600px; width: 100%; text-align: center; }
+        button { background: #10b981; color: white; border: none; padding: 15px 30px; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 20px; }
+        button:hover { background: #059669; transform: scale(0.98); }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        #log { margin-top: 20px; text-align: left; font-size: 14px; color: #64748b; background: #f8fafc; padding: 15px; border-radius: 8px; height: 200px; overflow-y: auto; }
+        .progress-bar { width: 100%; height: 10px; background: #e2e8f0; border-radius: 5px; margin-top: 20px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #10b981; width: 0%; transition: width 0.3s; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🌿 Extracteur de Plantes</h1>
+        <p>Récupère les données et les images via l'API, et génère un dossier ZIP prêt à l'emploi.</p>
+        
+        <button id="btn-start" onclick="demarrerExtraction()">Lancer l'extraction (50 plantes)</button>
+        
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+        <div id="log">En attente...</div>
+    </div>
+
+    <script>
+        const TOKEN = "usr-SGbvSXEW4PPUSoHpAmiwB8FwWO9ohRE4ftWRkyF3Qpw";
+        const API_URL = `https://perenual.com/api/species-list?key=${TOKEN}&indoor=0&page=1`;
+        
+        // Proxy CORS pour forcer le téléchargement des images si le serveur d'origine le bloque
+        const CORS_PROXY = "https://corsproxy.io/?"; 
+
+        function logMsg(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `<div>${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function demarrerExtraction() {
+            document.getElementById('btn-start').disabled = true;
+            document.getElementById('progress').style.width = "0%";
+            logMsg("🚀 Démarrage de l'extraction...");
+            
+            const zip = new JSZip();
+            const imgFolder = zip.folder("images_plantes");
+            const dataPlantes = [];
+
+            try {
+                logMsg("📡 Connexion à l'API...");
+                
+                // On récupère les 2 premières pages pour avoir au moins 50 plantes (Perenual donne 30/page)
+                let allResults = [];
+                for(let page = 1; page <= 2; page++) {
+                    const response = await fetch(`https://perenual.com/api/species-list?key=${TOKEN}&indoor=0&page=${page}`);
+                    const data = await response.json();
+                    if(data.data) allResults = allResults.concat(data.data);
+                }
+
+                // On garde seulement les 50 premières plantes qui ont une image
+                const plantesValides = allResults.filter(p => p.default_image && p.default_image.regular_url).slice(0, 50);
+                logMsg(`✅ ${plantesValides.length} plantes avec images trouvées.`);
+
+                for (let i = 0; i < plantesValides.length; i++) {
+                    const plante = plantesValides[i];
+                    document.getElementById('progress').style.width = `${((i + 1) / plantesValides.length) * 100}%`;
+                    
+                    const nomCommun = plante.common_name || plante.scientific_name[0];
+                    const famille = plante.family || "Inconnue";
+                    const safeId = "p_" + nomCommun.toLowerCase().replace(/[^a-z0-9]/g, "");
+                    const imageName = `${safeId}.jpg`;
+                    const imageUrl = plante.default_image.regular_url;
+
+                    logMsg(`📥 Téléchargement de l'image : ${nomCommun}...`);
+
+                    try {
+                        // Récupération de l'image (via le proxy pour éviter les erreurs CORS)
+                        const imgRes = await fetch(CORS_PROXY + encodeURIComponent(imageUrl));
+                        const imgBlob = await imgRes.blob();
+                        
+                        // Ajout de l'image dans le dossier 'images_plantes' du ZIP
+                        imgFolder.file(imageName, imgBlob);
+
+                        // Ajout des données dans notre tableau Javascript
+                        dataPlantes.push({
+                            id: safeId,
+                            domaine: "botanique",
+                            type: "pla",
+                            nom: nomCommun.charAt(0).toUpperCase() + nomCommun.slice(1),
+                            famille: famille,
+                            image: `./images/${imageName}` // Le chemin local pour ton application finale
+                        });
+                    } catch(err) {
+                        logMsg(`❌ Erreur image pour ${nomCommun} : ignorée.`);
+                    }
+                }
+
+                logMsg("📝 Génération du code JavaScript...");
+                // On crée le texte formaté pour ton fichier data.js
+                const jsContent = `// Données générées automatiquement\nconst DATA_PLANTES = [\n` + 
+                                  dataPlantes.map(p => `    ${JSON.stringify(p)}`).join(",\n") + 
+                                  `\n];`;
+                
+                zip.file("code_a_copier.js", jsContent);
+
+                logMsg("📦 Compression du fichier ZIP (patientez)...");
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                
+                logMsg("🎉 Terminé ! Téléchargement en cours...");
+                saveAs(zipBlob, "botanique_pack.zip");
+
+            } catch (error) {
+                logMsg(`🚨 ERREUR CRITIQUE : ${error.message}`);
+            } finally {
+                document.getElementById('btn-start').disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

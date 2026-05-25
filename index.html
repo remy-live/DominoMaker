@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studio Labyrinthe - Atelier Pro</title>
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script>window.jsPDF = window.jspdf.jsPDF;</script> 
+    <script src="https://unpkg.com/fflate@0.8.2/umd/index.js"></script> 
+    <script src="https://unpkg.com/svg2pdf.js@2.2.4/dist/svg2pdf.umd.min.js"></script> 
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <header id="main-header">
+        <div class="header-left">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16L4 4v16z"/></svg>
+                Atelier <span>Pro</span>
+            </div>
+            <div class="divider"></div>
+            <div class="undo-redo-group">
+                <button class="action-btn" id="btn-undo" onclick="undo()" title="Annuler (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg></button>
+                <button class="action-btn" id="btn-redo" onclick="redo()" title="Rétablir (Ctrl+Y)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg></button>
+            </div>
+            <button class="action-btn btn-clear" onclick="clearBoard()" title="Vider"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>Vider</button>
+        </div>
+
+        <div class="header-modes">
+            <button class="mode-btn active" onclick="switchMode('domino')" id="btn-domino"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"></rect><line x1="6" y1="12" x2="18" y2="12"></line></svg>Dominos</button>
+            <button class="mode-btn" onclick="switchMode('triomino')" id="btn-triomino"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 20h20L12 2z"></path></svg>Triominos</button>
+            <button class="mode-btn" onclick="switchMode('square')" id="btn-square"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>Carrés</button>
+        </div>
+
+        <div class="header-actions">
+            <button class="action-btn btn-open" onclick="triggerLoadProject()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>Ouvrir</button>
+            <input type="file" id="file-load-project" accept=".atelier,.json" style="display:none" onchange="loadProject(event)">
+            <button class="action-btn btn-save" onclick="saveProject()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path></svg>Sauver</button>
+            <button class="action-btn btn-demo" onclick="loadDemo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect></svg>Démo</button>
+            <button class="action-btn btn-game" id="btn-game-mode" onclick="toggleGameMode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle></svg>Jouer !</button>
+            <button class="action-btn btn-text-move" id="btn-text-move" onclick="toggleTextMoveMode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline></svg>Ajuster</button>
+            <button class="action-btn btn-toolbar" onclick="toggleStyleToolbar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"></path></svg>Style</button>
+            <button class="action-btn btn-pdf" onclick="openPreview()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>Export</button>
+            <button class="action-btn" id="btn-record" onclick="toggleRecording()" style="color: #d63031;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                </svg>
+                REC
+            </button>
+            <button class="action-btn" id="btn-fullscreen" onclick="toggleFullScreen()" title="Plein Écran">
+                <svg id="icon-fs-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+                <svg id="icon-fs-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                    <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+                </svg>
+                Écran
+            </button>
+            <button class="action-btn top-heart-btn" onclick="openDonationModal()" title="Soutenir le projet">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+                Soutenir
+            </button>
+        </div>
+    </header>
+
+    <button id="btn-quit-game" onclick="toggleGameMode()">🛑 QUITTER LE JEU</button>
+
+    <div id="app-body">
+        
+        <nav id="left-rail">
+            <button class="rail-btn active" id="rail-btn-plateaux" onclick="toggleLeftPanel('plateaux')" title="Modèles de Plateaux">🏗️</button>
+            <button class="rail-btn" id="rail-btn-maths" onclick="toggleLeftPanel('maths')" title="Mathématiques">🧮</button>
+            <button class="rail-btn" id="rail-btn-lang" onclick="toggleLeftPanel('lang')" title="Langues & Texte">📝</button>
+            <button class="rail-btn" id="rail-btn-media" onclick="toggleLeftPanel('media')" title="Banque d'Images (Drag & Drop)">🖼️</button>
+        </nav>
+
+        <aside id="tools-panel" class="">
+
+            <div id="panel-plateaux" class="panel-section">
+                <div class="panel-header">🏗️ Construction</div>
+                <div class="accordion open">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🧩 Modèles de Plateaux</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                  <div class="accordion-content">
+                        <div class="tool-subsection">
+                            
+                            <div id="tpl-domino" style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <input type="number" id="inp-domino-snake-count" value="18" min="2" max="50" title="Nombre de dominos" style="flex:1; margin:0;">
+                                    <button class="btn-confirm" onclick="generateTemplate('domino-snake-auto')" style="flex:2; margin:0; background:#0984e3;">🐍 Serpentin Auto</button>
+                                </div>
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <input type="number" id="inp-domino-grid-c" value="3" min="1" max="15" title="Colonnes" style="flex:1; margin:0;">
+                                    <span style="font-weight:bold; color:var(--text-muted);">x</span>
+                                    <input type="number" id="inp-domino-grid-r" value="4" min="1" max="15" title="Lignes" style="flex:1; margin:0;">
+                                    <button class="btn-confirm" onclick="generateTemplate('domino-grid-auto')" style="flex:2; margin:0; background:#0984e3;">🧱 Grille Auto</button>
+                                </div>
+                                
+                                <div style="height:1px; background:#dfe6e9; margin: 4px 0;"></div>
+                                
+                                <button class="btn-confirm" onclick="generateTemplate('domino-snake-horiz')" style="background: #2d3436;">🐍 Serpentin Large (14 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-snake')" style="background: #2d3436;">🐍 Serpentin Haut (15 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-escalier')" style="background: #2d3436;">🪜 Escalier Zigzag (12 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-carre')" style="background: #2d3436;">🔄 Grande Boucle (16 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-boucle-mini')" style="background: #2d3436;">🔁 Petite Boucle (8 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-loop')" style="background: #2d3436;">🔀 Boucle Sinueuse (13 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-creneau')" style="background: #2d3436;">🏰 Chemin Créneaux (9 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-spiral')" style="background: #2d3436;">🌀 La Spirale (11 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-hollow-square')" style="background: #2d3436;">🔲 Carré Vide (12 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('domino-u')" style="background: #2d3436;">🧲 Forme en U (9 p.)</button>
+                            </div>
+                            
+                            <div id="tpl-triomino" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px;">
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <input type="number" id="inp-trio-layers" value="4" min="1" max="10" title="Taille (étages)" style="flex:1; margin:0;">
+                                    <button class="btn-confirm" onclick="generateTemplate('trio-triangle-auto')" style="flex:2; margin:0; background:#0984e3;">🔺 Triangle Auto</button>
+                                </div>
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <input type="number" id="inp-trio-grid-cols" value="6" min="1" max="20" title="Pièces par ligne" style="flex:1; margin:0;">
+                                    <span style="font-weight:bold; color:var(--text-muted);">x</span>
+                                    <input type="number" id="inp-trio-grid-rows" value="2" min="1" max="10" title="Nombre de lignes" style="flex:1; margin:0;">
+                                    <button class="btn-confirm" onclick="generateTemplate('trio-grid')" style="flex:2; margin:0; background:#0984e3;">🧱 Grille Auto</button>
+                                </div>
+
+                                <div style="height:1px; background:#dfe6e9; margin: 4px 0;"></div>
+                                
+                                <button class="btn-confirm" onclick="generateTemplate('trio-star')" style="background: #2d3436;">⭐ Forme Étoile (11 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('trio-triangle')" style="background: #2d3436;">🔺 Petit Triangle (9 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('trio-hexa')" style="background: #2d3436;">🛑 Parallélogramme (6 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('trio-wave')" style="background: #2d3436;">🌊 Chemin Vague (9 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('trio-line')" style="background: #2d3436;">〰️ Ligne brisée (10 p.)</button>
+                            </div>
+                            
+                            <div id="tpl-square" style="display: none; flex-direction: column; gap: 5px; margin-top: 5px;">
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <input type="number" id="inp-sq-pyramid" value="5" min="2" max="10" title="Base de la pyramide" style="flex:1; margin:0;">
+                                    <button class="btn-confirm" onclick="generateTemplate('square-pyramid')" style="flex:2; margin:0; background:#0984e3;">📐 Pyramide Auto</button>
+                                </div>
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <input type="number" id="inp-sq-frame-w" value="5" min="2" max="15" title="Largeur" style="flex:1; margin:0;">
+                                    <span style="font-weight:bold; color:var(--text-muted);">x</span>
+                                    <input type="number" id="inp-sq-frame-h" value="4" min="2" max="15" title="Hauteur" style="flex:1; margin:0;">
+                                    <button class="btn-confirm" onclick="generateTemplate('square-frame-auto')" style="flex:2; margin:0; background:#0984e3;">🖼️ Cadre Auto</button>
+                                </div>
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <input type="number" id="inp-sq-cols" value="4" min="1" max="15" title="Colonnes" style="flex:1; margin:0;">
+                                    <span style="font-weight:bold; color:var(--text-muted);">x</span>
+                                    <input type="number" id="inp-sq-rows" value="4" min="1" max="15" title="Lignes" style="flex:1; margin:0;">
+                                    <button class="btn-confirm" onclick="generateTemplate('square-custom')" style="flex:2; margin:0; background:#0984e3;">🧱 Grille Auto</button>
+                                </div>
+
+                                <div style="height:1px; background:#dfe6e9; margin: 4px 0;"></div>
+                                
+                                <button class="btn-confirm" onclick="generateTemplate('square-cross')" style="background: #2d3436;">➕ Forme Croix (9 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('square-grid3x3')" style="background: #2d3436;">⬛ Bloc 3x3 (9 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('square-bloc')" style="background: #2d3436;">🧱 Bloc 3x4 (12 p.)</button>
+                                <button class="btn-confirm" onclick="generateTemplate('square-frame')" style="background: #2d3436;">🖼️ Cadre 4x4 (12 p.)</button>
+                            </div>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        <div id="panel-maths" class="panel-section" style="display:none;">
+                <div class="panel-header">🧮 Outils Mathématiques</div>
+                
+                <div class="accordion open">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🧠 Calcul Mental</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Remplissage Auto</div>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="cb-calc-add" checked> Addition simple</label>
+                                <label><input type="checkbox" id="cb-calc-mul" checked> Multiplication</label>
+                                <label><input type="checkbox" id="cb-calc-p9"> Ajout de +9, +99</label>
+                                <label><input type="checkbox" id="cb-calc-m9"> Soustraction de -9, -99</label>
+                            </div>
+                            <div class="tool-divider"></div>
+                            <label>Bornes des nombres :</label>
+                            <div style="display:flex; gap:5px; align-items:center; margin-bottom:6px;">
+                                <span style="font-size:11px; font-weight:800; color:var(--text-muted);">De</span>
+                                <input type="number" id="inp-calc-min" value="10" style="flex:1; margin:0; padding:4px;">
+                                <span style="font-size:11px; font-weight:800; color:var(--text-muted);">à</span>
+                                <input type="number" id="inp-calc-max" value="50" style="flex:1; margin:0; padding:4px;">
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('calcul')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('calcul', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('calcul', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+<div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">⚡ Priorités Opératoires</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Remplissage Auto</div>
+                            
+                            <label>Parenthèses :</label>
+                            <div class="checkbox-group" style="margin-bottom:8px;">
+                                <label><input type="checkbox" id="cb-prio-sans" checked> Sans (ex: 3 + 4 × 2)</label>
+                                <label><input type="checkbox" id="cb-prio-avec" checked> Avec (ex: (3+4) × 2)</label>
+                            </div>
+
+                            <label>Complexité :</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="cb-prio-niv1" checked> Niv 1 (3 termes : a + b × c)</label>
+                                <label><input type="checkbox" id="cb-prio-niv2"> Niv 2 (4 termes : a + b × c - d)</label>
+                            </div>
+
+                            <div class="tool-divider"></div>
+                            <label>Valeur des nombres :</label>
+                            <div style="display:flex; gap:5px; align-items:center; margin-bottom:6px;">
+                                <span style="font-size:11px; font-weight:800; color:var(--text-muted);">De</span>
+                                <input type="number" id="inp-prio-min" value="2" style="flex:1; margin:0; padding:4px;">
+                                <span style="font-size:11px; font-weight:800; color:var(--text-muted);">à</span>
+                                <input type="number" id="inp-prio-max" value="12" style="flex:1; margin:0; padding:4px;">
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('priorites')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('priorites', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('priorites', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">➕ Nombres Relatifs</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Remplissage Auto</div>
+                            <label>Opérations autorisées :</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="cb-add" checked> Addition</label>
+                                <label><input type="checkbox" id="cb-sub" checked> Soustraction</label>
+                                <label><input type="checkbox" id="cb-mul"> Multiplication</label>
+                            </div>
+                            <label style="margin-top:5px;">Valeur max : <span id="val-rel-max" style="color:var(--primary)">10</span></label>
+                            <input type="range" id="inp-rel-max" min="5" max="50" value="10" oninput="document.getElementById('val-rel-max').innerText=this.value">
+                            <button class="btn-confirm" onclick="applyGenerator('relatifs')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('relatifs', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('relatifs', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">⅟ Fractions & Pourcents</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Multi-Formats</div>
+                            <div class="checkbox-group" style="margin-bottom:5px;">
+                                <label><input type="checkbox" id="cb-frac-txt" checked> ⅟ Fraction classique</label>
+                                <label><input type="checkbox" id="cb-frac-pct" checked> ٪ Pourcentage</label>
+                                <label><input type="checkbox" id="cb-frac-pie" checked> 🍕 Camembert</label>
+                                <label><input type="checkbox" id="cb-frac-bar"> 🍫 Bande</label>
+                                <label><input type="checkbox" id="cb-frac-axis"> 📏 Axe gradué</label>
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('fractions')">Générer Tout</button>
+                        </div>
+                        <div class="tool-divider"></div>
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">✏️ DESSIN CIBLE</div>
+                            <div style="display:flex; gap:5px; margin-top:5px; margin-bottom:8px; align-items:center;">
+                                <input type="text" id="inp-frac-val" placeholder="ex: 3/5" style="flex:1; text-align:center; margin:0;">
+                                <input type="color" id="inp-frac-color" value="#74b9ff" style="width:30px; height:24px; padding:0; border:none; cursor:pointer;" title="Couleur de la part">
+                            </div>
+                            <select id="inp-frac-type" style="margin-bottom:10px;">
+                                <option value="text">⅟ Fraction</option>
+                                <option value="pie">🍕 Camembert</option>
+                                <option value="bar">🍫 Bande</option>
+                                <option value="axis">📏 Axe gradué</option>
+                            </select>
+                            <button class="btn-confirm" onclick="insertAdvancedFraction()">Injecter</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🔢 Numérique & Arithmétique</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Remplissage Auto</div>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="cb-num-puiss" checked> Puissances de 10</label>
+                                <label><input type="checkbox" id="cb-num-pct" checked> Pourcentages appliqués</label>
+                                <label><input type="checkbox" id="cb-num-arith" checked> PGCD & Nombres Premiers</label>
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('numerique')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('numerique', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('numerique', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🔠 Algèbre</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Remplissage Auto</div>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="cb-alg-dev" checked> Développer / Factoriser</label>
+                                <label><input type="checkbox" id="cb-alg-rac" checked> Racines Carrées (Simplif.)</label>
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('algebre')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('algebre', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('algebre', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🧮 Équations</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Remplissage Auto</div>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="cb-eq-1" checked> Niv 1 (x + a = b)</label>
+                                <label><input type="checkbox" id="cb-eq-2" checked> Niv 2 (ax = b)</label>
+                                <label><input type="checkbox" id="cb-eq-3"> Niv 3 (ax + b = c)</label>
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('equations')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('equations', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('equations', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">📐 Angles Géométriques</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Remplissage Auto</div>
+                            <div class="checkbox-group" style="margin-bottom:5px;">
+                                <label><input type="checkbox" id="cb-ang-opp" checked> Opposés par le sommet</label>
+                                <label><input type="checkbox" id="cb-ang-alt" checked> Alternes-internes</label>
+                                <label><input type="checkbox" id="cb-ang-cor"> Correspondants</label>
+                                <label><input type="checkbox" id="cb-ang-comp"> Complémentaires (90°)</label>
+                                <label><input type="checkbox" id="cb-ang-supp"> Supplémentaires (180°)</label>
+                                <label><input type="checkbox" id="cb-ang-tri"> Triangles (Tous types)</label>
+                                <label><input type="checkbox" id="cb-ang-plein"> Angle Plein (360°)</label>
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('angles')">Générer Tout</button>
+                        </div>
+                        <div class="tool-divider"></div>
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">✏️ DESSIN CIBLE</div>
+                            <input type="number" id="lib-angle-val" value="45" min="5" max="355">
+                            <select id="lib-angle-type">
+                                <option value="oppose">Opposés par le sommet</option>
+                                <option value="alterne">Alternes-internes</option>
+                                <option value="corresp">Correspondants</option>
+                                <option value="comp">Complémentaires (90°)</option>
+                                <option value="supp">Supplémentaires (180°)</option>
+                                <option value="triangle">Triangle</option>
+                                <option value="plein">Angle plein (360°)</option>
+                            </select>
+                            <button class="btn-confirm" onclick="insertAdvancedAngle()">Injecter</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">📏 Aires, Pythagore & Repères</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Aires de figures (SVG)</div>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="cb-geo-rect" checked> Rectangles & Carrés</label>
+                                <label><input type="checkbox" id="cb-geo-tri" checked> Triangles</label>
+                                <label><input type="checkbox" id="cb-geo-circ"> Cercles / Disques</label>
+                                <label><input type="checkbox" id="cb-geo-los"> Losanges</label>
+                                <label><input type="checkbox" id="cb-geo-para"> Parallélogrammes</label>
+                            </div>
+                            <div class="tool-divider"></div>
+                            <div class="tool-sub-title">🪄 Pythagore & Repérage</div>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="cb-geo-pyth" checked> Pythagore (Côtés variés)</label>
+                                <label><input type="checkbox" id="cb-geo-rep" checked> Repérage (Coordonnées)</label>
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('figures')">Générer Tout</button>
+                        </div>
+                        <div class="tool-divider"></div>
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">✏️ DESSIN CIBLE (SUR MESURE)</div>
+                            <select id="inj-geo-type" style="width:100%; margin-bottom:8px;" onchange="updateGeoInjectorUI()">
+                                <option value="rect">🟩 Rectangle / Carré</option>
+                                <option value="tri">🔺 Triangle (Aires)</option>
+                                <option value="para">🟨 Parallélogramme</option>
+                                <option value="los">🟪 Losange</option>
+                                <option value="pyth">📐 Pythagore</option>
+                            </select>
+                            <div id="inj-geo-fields" style="display:flex; flex-direction:column; gap:5px; margin-bottom:8px;">
+                                </div>
+                            <button class="btn-confirm" onclick="injectAdvancedGeo()">Injecter dans la case</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">⚖️ Conversions d'Unités</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <div class="tool-sub-title">🪄 Remplissage Auto</div>
+                            <div class="checkbox-group" style="margin-bottom:5px;">
+                                <label><input type="radio" name="conv-type" value="len" checked> Longueurs (m, cm...)</label>
+                                <label><input type="radio" name="conv-type" value="mass"> Masses (t, kg...)</label>
+                            </div>
+                            <button class="btn-confirm" onclick="applyGenerator('conversions')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('conversions', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('conversions', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+           <div id="panel-lang" class="panel-section" style="display:none;">
+                <div class="panel-header">📝 Langues & Texte</div>
+                
+                <div class="accordion open">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🇬🇧 Vocabulaire & Traduction</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <select id="lang-vocab-theme" style="width:100%; margin-bottom:8px;">
+                                <option value="animaux">Animaux (Fr/En)</option>
+                                <option value="couleurs">Couleurs (Fr/En)</option>
+                                <option value="maison">Maison (Fr/En)</option>
+                                <option value="metiers">Métiers (Fr/En)</option>
+                            </select>
+                            <button class="btn-confirm" onclick="applyGenerator('vocabulaire')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('vocabulaire', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('vocabulaire', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">📖 Conjugaison</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <select id="lang-conj-temps" style="width:100%; margin-bottom:8px;">
+                                <option value="present">Présent de l'indicatif</option>
+                                <option value="imparfait">Imparfait</option>
+                                <option value="futur">Futur simple</option>
+                            </select>
+                            <button class="btn-confirm" onclick="applyGenerator('conjugaison')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('conjugaison', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('conjugaison', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🔤 Synonymes & Antonymes</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <select id="lang-syn-type" style="width:100%; margin-bottom:8px;">
+                                <option value="synonymes">Synonymes</option>
+                                <option value="antonymes">Antonymes</option>
+                            </select>
+                            <button class="btn-confirm" onclick="applyGenerator('syno-anto')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('syno-anto', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('syno-anto', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🌍 Culture Générale (Géo)</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <select id="lang-geo-type" style="width:100%; margin-bottom:8px;">
+                                <option value="capitales">Capitales d'Europe</option>
+                            </select>
+                            <button class="btn-confirm" onclick="applyGenerator('geo')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('geo', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('geo', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">📊 Import Excel / Word</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <label>Collez 2 colonnes (A et B) :</label>
+                            <textarea id="gen-import-text" placeholder="Chien&#9;Dog&#10;Chat&#9;Cat"></textarea>
+                            <button class="btn-confirm" onclick="applyGenerator('import')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('import', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('import', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">A=B Paires sur mesure</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="tool-subsection">
+                            <label>Format: Mot = Mot</label>
+                            <textarea id="gen-custom-text"></textarea>
+                            <button class="btn-confirm" onclick="applyGenerator('custom')">Générer Tout</button>
+                        </div>
+                        <div class="tool-subsection" style="margin-top: -3px;">
+                            <div class="tool-sub-title">🎯 INJECTION CIBLE</div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-confirm" onclick="injectSingle('custom', 'q')" style="margin-top:0; background:#34495e; flex:1;">Question</button>
+                                <button class="btn-confirm" onclick="injectSingle('custom', 'a')" style="margin-top:0; background:#16a085; flex:1;">Réponse</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="panel-media" class="panel-section" style="display:none;">
+                <div class="panel-header">🖼️ Banque d'Images</div>
+                
+                <div class="accordion open">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-title">🧸 Objets & Icônes</div>
+                        <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="accordion-content" style="padding: 0;">
+                        <p style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px;">Glissez une icône sur une case !</p>
+                        <div id="media-grid-basic" class="media-grid"></div>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <aside id="style-toolbar" class="">
+            
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header-title">🌍 Plateau & Écran</div>
+                    <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+                <div class="accordion-content">
+                    
+                    <div class="style-group compact" style="margin-top: 5px;">
+                        <label>Ambiance (Fond d'écran)</label>
+                        <div style="display:flex; gap:5px; margin-bottom: 6px;">
+                            <select id="inp-bg-style" style="flex:3; margin:0;" onchange="updateStyleFromToolbar(this.id)">
+                                <option value="uni">🟩 Uni (Couleur)</option>
+                                <option value="aube">🌅 Aube (Chaud)</option>
+                                <option value="nuit">🌌 Nuit étoilée</option>
+                                <option value="abysses">🌊 Abysses</option>
+                                <option value="foret">🌲 Forêt magique</option>
+                            </select>
+                            <input type="color" id="inp-canvas-bg" value="#f5f6fa" title="Couleur unie" style="flex:1; height:24px; padding:0; border:1px solid #dfe6e9; border-radius:4px; cursor:pointer;" oninput="document.documentElement.style.setProperty('--bg-canvas', this.value); document.getElementById('inp-bg-style').value='uni'; updateStyleFromToolbar('inp-canvas-bg');">
+                        </div>
+                    </div>
+
+                    <div class="color-row-ultra" style="border-top: none; padding-top: 0;">
+                        <label class="color-mini"><input type="color" id="inp-grid-color" value="#dcdde1" oninput="document.documentElement.style.setProperty('--grid-color', this.value)"> Couleur de la Grille</label>
+                    </div>
+
+                    <div class="style-group compact">
+                        <label>Taille cases <span><b id="size-val">80</b></span></label>
+                        <input type="range" id="inp-size" min="50" max="150" value="80" oninput="updateStyleFromToolbar(this.id)">
+                    </div>
+                    <div class="mini-check-group">
+                        <label class="mini-check" title="Fusionner les bords"><input type="checkbox" id="inp-merge" checked onchange="updateGridSize()" onclick="event.stopPropagation()"> Fusion</label>
+                        <label class="mini-check" title="Rotation stricte (PDF)"><input type="checkbox" id="inp-keep-dir" checked onclick="event.stopPropagation()"> Fixe PDF</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion open">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header-title">🎨 Apparence & Thèmes</div>
+                    <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+                <div class="accordion-content">
+                    <div class="style-group compact" style="margin-bottom: 6px;">
+                        <label>Thème de couleurs (Palettes)</label>
+                        <select id="inp-fig-theme" onchange="updateStyleFromToolbar(this.id)">
+                            <option value="pastel">🌸 Pastel (Doux & Lumineux)</option>
+                            <option value="macaron">🍬 Macaron (Sucré & Poudré)</option>
+                            <option value="ocean">🌊 Océan (Nuances de bleu)</option>
+                            <option value="jungle">🌿 Jungle (Nuances de Vert)</option>
+                            <option value="automne">🍂 Automne (Chaud & Nature)</option>
+                            <option value="terracotta">🏜️ Terracotta (Terre & Ocre)</option>
+                            <option value="sunset">🌅 Sunset (Coucher de Soleil)</option>
+                            <option value="vintage">📻 Vintage (Rétro & Doux)</option>
+                            <option value="galaxie">🌌 Galaxie (Violet & Nuit)</option>
+                            <option value="arcenciel">🌈 Arc-en-ciel (Vif & Joyeux)</option>
+                            <option value="monochrome">📓 Niveaux de gris (Lisible)</option>
+                        </select>
+                    </div>
+                    <label class="mini-check" style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #f1f2f6;" title="Active ou désactive le fond coloré des formes SVG."><input type="checkbox" id="inp-color-figures" checked onchange="updateStyleFromToolbar(this.id)"> Colorier l'intérieur des figures</label>
+                    <div style="display:flex; gap:5px; margin-bottom: 8px;">
+                        <button class="btn-confirm" onclick="randomizeFigureColors()" style="background: #00cec9; flex:1; font-size:10.5px; padding:8px 4px;">🎨 Colorier figures</button>
+                        <button class="btn-confirm" onclick="randomizePieceColors()" style="background: #a29bfe; flex:1; font-size:10.5px; padding:8px 4px;">🎨 Colorier dominos</button>
+                    </div>
+                    <div class="style-group compact" style="margin-bottom: 8px;">
+                        <label>Matière des pièces (Relief)</label>
+                        <select id="inp-piece-style" onchange="updateStyleFromToolbar(this.id)">
+                            <option value="flat">🟩 Plat (Classique scolaire)</option>
+                            <option value="gradient">🌈 Dégradé dynamique</option>
+                            <option value="3d">🧊 Effet 3D (Type Gommette)</option>
+                            <option value="cristal">💎 Cristal (Translucide)</option>
+                            <option value="wood">🪵 Effet Tuile (Jeu en bois)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header-title">📝 Textes & Tracés</div>
+                    <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+                <div class="accordion-content">
+                    <select id="inp-font-family" onchange="updateStyleFromToolbar(this.id)" title="Police de caractères" style="margin-top: 4px;">
+                        <option value="Nunito">Nunito</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Comic Sans MS">Comic Sans</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Courier New">Courier</option>
+                    </select>
+                    <div class="style-group compact">
+                        <label>Taille Texte <span><b id="font-size-val">1.1</b></span></label>
+                        <input type="range" id="inp-font-size" min="0.5" max="3" step="0.1" value="1.1" oninput="updateStyleFromToolbar(this.id)">
+                    </div>
+                    <label class="mini-check" title="Réduire si le texte est long" style="margin-bottom:6px;"><input type="checkbox" id="inp-auto-fit" checked onchange="renderAll()"> Ajustement auto</label>
+                    
+                    <div class="style-group compact">
+                        <label>Épaisseur du trait <span><b id="width-val">4</b></span></label>
+                        <input type="range" id="inp-width" min="2" max="12" step="2" value="4" oninput="updateStyleFromToolbar(this.id); document.getElementById('width-val').innerText=this.value;">
+                    </div>
+                    <div class="style-group compact">
+                        <label>Marges (Interne) <span><b id="margin-val">15</b></span></label>
+                        <input type="range" id="inp-margin" min="5" max="40" step="1" value="15" oninput="updateStyleFromToolbar(this.id)">
+                    </div>
+                    <div class="style-group compact">
+                        <label>Taille Icônes (SVG) <span><b id="svg-scale-val">1.0</b></span></label>
+                        <input type="range" id="inp-svg-scale" min="0.3" max="2.5" step="0.1" value="1.0" oninput="updateStyleFromToolbar(this.id)">
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion" id="toolbar-container">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header-title" id="toolbar-label">🖌️ Couleurs (Individuel)</div>
+                    <svg class="arrow" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+                <div class="accordion-content">
+                    <div class="color-row-ultra">
+                        <label class="color-mini"><input type="color" id="inp-text-color" value="#2d3436" oninput="updateStyleFromToolbar(this.id)"> Texte</label>
+                        <label class="color-mini"><input type="color" id="inp-bg" value="#dfe6e9" oninput="updateStyleFromToolbar(this.id)"> Fond</label>
+                        <label class="color-mini"><input type="color" id="inp-border" value="#b2bec3" oninput="updateStyleFromToolbar(this.id)"> Bord</label>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button id="btn-apply-all" class="btn-confirm" onclick="applyStyleToAll()" style="display:none; flex:3;">Appliquer à tous</button>
+                        <button id="btn-delete-piece" class="btn-confirm" onclick="deleteSelectedPiece()" style="display:none; flex:1; background:#d63031;" title="Supprimer">🗑️</button>
+                    </div>
+                </div>
+            </div>
+            
+        </aside>
+
+        <div id="zoom-widget" class="zoom-widget">
+            <button onclick="adjustZoom(-0.15)" title="Dézoomer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button onclick="fitViewToPieces()" title="Recadrer au centre">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3h6v6H3zM15 3h6v6h-6zM15 15h6v6h-6zM3 15h6v6H3z"></path></svg>
+            </button>
+            <button onclick="adjustZoom(0.15)" title="Zoomer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+        </div>
+
+        <main id="viewport">
+            <div id="canvas-content" class="canvas-merged"></div>
+        </main>
+    </div>
+
+    <div id="modal-alert"><div class="alert-box"><h3 id="alert-title"></h3><p id="alert-msg"></p><button class="alert-btn" onclick="document.getElementById('modal-alert').style.display='none'">Compris</button></div></div>
+
+    <div id="floating-editor">
+        <div class="editor-header"><span>Édition du contenu</span><div style="display:flex; gap:10px; align-items:center;"><button onclick="deleteSelectedPiece()" title="Supprimer cette pièce" style="color:#d63031; font-size:14px; background:none; border:none; cursor:pointer;">🗑️</button><button onclick="closeEditor()" style="font-size:14px; background:none; border:none; cursor:pointer;">✖</button></div></div>
+        <input type="text" id="editor-input" placeholder="Tapez ici..." oninput="updateZoneLive(this.value)">
+        <div class="editor-tools" style="background: #f8f9fa; padding: 5px; border-radius: 6px; margin-top: 5px; display: flex; align-items: center; justify-content: center;">
+            <div id="text-size-btns" style="display:flex; gap:5px; align-items:center;"><input type="color" id="editor-text-color" title="Couleur du texte" oninput="updateTextColorLive(this.value)" style="width: 24px; height: 24px; padding: 0; border: none; cursor: pointer; background: transparent;"><div style="width: 1px; height: 16px; background: #b2bec3; margin: 0 2px;"></div><button onclick="adjustFontSize(-1)">A-</button><button onclick="adjustFontSize(1)">A+</button></div>
+            <div id="svg-size-btns" style="display:none; gap:5px;"><button onclick="adjustSvgScale(-1)">🔍-</button><button onclick="adjustSvgScale(1)">🔍+</button></div>
+            <div style="width: 1px; height: 20px; background: #dfe6e9; margin: 0 8px;"></div>
+            <div style="display:flex; gap:5px;"><button onclick="nudgeContent(0, -5)">↑</button><button onclick="nudgeContent(0, 5)">↓</button><button onclick="nudgeContent(-5, 0)">←</button><button onclick="nudgeContent(5, 0)">→</button></div>
+        </div>
+        <div class="editor-tools" style="margin-top: 5px; display: flex; gap: 5px;"><button class="btn-highlight" onclick="document.getElementById('img-upload').click()">🖼️ Image</button><input type="file" id="img-upload" accept="image/png, image/jpeg, image/svg+xml" style="display:none" onchange="handleImageUpload(this)"><button class="btn-highlight" onclick="injectFraction()">⅟ Fraction</button></div>
+    </div>
+
+    <div id="preview-viewport">
+        <div class="preview-toolbar">
+            <h2 style="font-size: 16px;">🖨️ Exportations</h2>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <input type="text" id="export-title" placeholder="Titre..." style="padding:6px; border:1px solid #ddd; border-radius:4px; font-size:12px;" oninput="renderVectorPreview()">
+                <select id="export-orientation" style="padding:5px; font-size:12px;" onchange="renderVectorPreview()">
+                    <option value="portrait">📄 Portrait</option>
+                    <option value="landscape">🎴 Paysage</option>
+                </select>
+                <select id="export-layout" style="padding:5px; font-size:12px;" onchange="renderVectorPreview()">
+                    <option value="eco" selected>🌿 Éco (Multi)</option>
+                    <option value="standard">📏 Standard</option>
+                    <option value="compact">📦 Compact (1 page)</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 6px;">
+                <button class="action-btn" onclick="closePreview()" style="height:36px; min-width:60px; background:#eee;">Retour</button>
+                <button class="action-btn" onclick="downloadVector('svg')" style="height:36px; min-width:60px; background:#fab1a0;">SVG</button>
+                <button class="action-btn" onclick="downloadVector('png')" style="height:36px; min-width:60px; background:#74b9ff;">PNG</button>
+                <button class="action-btn" id="btn-export-pdf" onclick="downloadVector('pdf')" style="height:36px; min-width:90px; background:#d63031; color:white;">PDF</button>
+            </div>
+        </div>
+        <div class="preview-scroll-area"><div id="vector-preview-container"></div></div>
+    </div>
+
+    <div id="donationModal" class="donation-backdrop">
+        <div class="donation-box">
+            <h3 class="donation-title">Vous aimez cet outil ?</h3>
+            <div class="donation-text">
+                Ce studio est développé bénévolement pour aider à créer des fiches d'exercices et des puzzles de géométrie.
+                <br><br>
+                Il n'y a pas de publicité, pas de compte requis. Juste du partage ! Si vous souhaitez soutenir ma démarche et l'hébergement du projet, vous pouvez laisser un don libre.
+            </div>
+            <div class="donation-btns">
+                <button class="donation-btn-close" onclick="closeDonationModal()">Plus tard</button>
+                <a href="https://www.paypal.com/donate/?hosted_button_id=VKZXDC5BM2GHA" target="_blank" class="donation-btn-link" onclick="closeDonationModal()">
+                    ❤️ Faire un don
+                </a>
+            </div>
+            <div style="margin-top:15px; font-size:11px; color:var(--text-muted); font-weight:700; letter-spacing:0.5px;">
+                🔒 TRANSACTION SÉCURISÉE via PayPal
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openDonationModal() {
+            document.getElementById('donationModal').style.display = 'flex';
+        }
+        function closeDonationModal() {
+            document.getElementById('donationModal').style.display = 'none';
+        }
+        
+        // Permet de fermer la modale si on clique en dehors du cadre
+        document.addEventListener('DOMContentLoaded', () => {
+            const donModal = document.getElementById('donationModal');
+            if (donModal) {
+                donModal.addEventListener('mousedown', function(e) {
+                    if(e.target === this) closeDonationModal();
+                });
+            }
+        });
+    </script>
+
+    <script src="js/geometrie.js?v=16"></script>
+    <script src="js/app.js?v=16"></script>
+    <script src="js/moteur-magique.js?v=16"></script>
+    <script src="js/export-pdf.js?v=16"></script>
+</body>
+</html>
